@@ -1,11 +1,13 @@
 package org.example;
 
 import com.fasterxml.jackson.databind.JsonNode;
+
 import java.util.*;
 
 /**
  * Builds grouped test functions for each Swagger tag from path definitions,
  * including status check, timing, body validation, and logging response status per request.
+ * Now supports all kinds of static values (example, default, enum) for query parameters.
  */
 public class GroupFunctionBuilder {
 
@@ -34,6 +36,7 @@ public class GroupFunctionBuilder {
     public Map<String, StringBuilder> buildGroupedFunctions() {
         Map<String, List<EndpointMethod>> grouped = new LinkedHashMap<>();
 
+        // Group endpoints by tag
         paths.fields().forEachRemaining(entry -> {
             String path = entry.getKey();
             JsonNode methods = entry.getValue();
@@ -60,13 +63,26 @@ public class GroupFunctionBuilder {
                 String safeName = ep.method.toUpperCase() + "_" + ep.path.replaceAll("[^a-zA-Z0-9]", "_");
                 String finalPath = ep.path.replace("{company}", "${COMPANY}");
 
+                // Query param builder - now supports "example", "default", "enum"
                 StringBuilder queryParams = new StringBuilder();
                 JsonNode parameters = ep.details.get("parameters");
                 if (parameters != null && parameters.isArray()) {
                     List<String> paramList = new ArrayList<>();
                     for (JsonNode param : parameters) {
                         if ("query".equals(param.path("in").asText()) && param.has("name")) {
-                            paramList.add(param.get("name").asText() + "=value");
+                            String name = param.get("name").asText();
+                            String value = "value";
+                            if (param.has("example")) {
+                                JsonNode ex = param.get("example");
+                                value = ex.isTextual() ? ex.asText() : ex.toString();
+                            } else if (param.has("default")) {
+                                JsonNode def = param.get("default");
+                                value = def.isTextual() ? def.asText() : def.toString();
+                            } else if (param.has("enum") && param.get("enum").isArray() && param.get("enum").size() > 0) {
+                                JsonNode first = param.get("enum").get(0);
+                                value = first.isTextual() ? first.asText() : first.toString();
+                            }
+                            paramList.add(name + "=" + value);
                         }
                     }
                     if (!paramList.isEmpty()) {
@@ -97,10 +113,6 @@ public class GroupFunctionBuilder {
                 builder.append("// Endpoint: ").append(ep.path).append("\n")
                         .append("// Method: ").append(ep.method.toUpperCase()).append("\n")
                         .append(bodyBlock)
-                        .append("   console.log('--- Testing endpoint: [")
-                        .append(ep.method.toUpperCase()).append("] ")
-                        .append(finalPath).append(queryParams)
-                        .append(" ---');\n")
                         .append("   let response_").append(safeName).append(" = http.")
                         .append(method).append("(`${BASE_URL}").append(finalPath).append(queryParams).append("`, ")
                         .append((hasBody && !"get".equals(method)) ? "body_" + safeName + ", { headers: HEADERS }" : "{ headers: HEADERS }")
@@ -114,7 +126,7 @@ public class GroupFunctionBuilder {
                         .append("][var=response_").append(safeName).append("][method=").append(ep.method.toUpperCase())
                         .append("] ${r.request.method} ${r.request.url} - got ${r.status}`); return ok; },\n")
 
-// 401
+                        // 401
                         .append("  '[")
                         .append(ep.method.toUpperCase()).append("] ")
                         .append(finalPath).append(queryParams)
@@ -122,7 +134,7 @@ public class GroupFunctionBuilder {
                         .append(safeName).append("][method=").append(ep.method.toUpperCase())
                         .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
 
-// 404
+                        // 404
                         .append("  '[")
                         .append(ep.method.toUpperCase()).append("] ")
                         .append(finalPath).append(queryParams)
@@ -130,7 +142,7 @@ public class GroupFunctionBuilder {
                         .append(safeName).append("][method=").append(ep.method.toUpperCase())
                         .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
 
-// 500
+                        // 500
                         .append("  '[")
                         .append(ep.method.toUpperCase()).append("] ")
                         .append(finalPath).append(queryParams)
@@ -138,7 +150,7 @@ public class GroupFunctionBuilder {
                         .append(safeName).append("][method=").append(ep.method.toUpperCase())
                         .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
 
-// Response has body
+                        // Response has body
                         .append("  '[")
                         .append(ep.method.toUpperCase()).append("] ")
                         .append(finalPath).append(queryParams)
@@ -146,7 +158,7 @@ public class GroupFunctionBuilder {
                         .append(safeName).append("][method=").append(ep.method.toUpperCase())
                         .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
 
-// Content-type is JSON
+                        // Content-type is JSON
                         .append("  '[")
                         .append(ep.method.toUpperCase()).append("] ")
                         .append(finalPath).append(queryParams)
@@ -155,13 +167,14 @@ public class GroupFunctionBuilder {
                         .append(safeName).append("][method=").append(ep.method.toUpperCase())
                         .append("] Expected JSON, got ${r.headers['Content-Type']} for ${r.request.url}`); return ok; },\n")
 
-// Response timing
+                        // Response timing
                         .append("  '[")
                         .append(ep.method.toUpperCase()).append("] ")
                         .append(finalPath).append(queryParams)
                         .append(" response < 500ms': (r) => { const ok = r.timings.duration < 500; if (!ok) console.log(`[SLOW][${r.timings.duration}ms][var=response_")
                         .append(safeName).append("][method=").append(ep.method.toUpperCase())
                         .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
+
                         .append("});\n")
                         .append("   sleep(1);\n\n");
             }
