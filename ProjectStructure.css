@@ -1,0 +1,14 @@
+├── pom.xml
+├── Dockerfile
+├── .gitlab-ci.yml
+└── src
+    └── main
+        ├── java
+        │   └── com.example
+        │       ├── Application.java
+        │       ├── controller
+        │       │   └── K6ScriptGeneratorController.java
+        │       └── service
+        │           └── K6ScriptGeneratorService.java
+        └── resources
+            └── application.properties
