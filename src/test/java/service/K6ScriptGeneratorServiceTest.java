@@ -2,9 +2,12 @@ package service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.K6ScriptGeneratorService;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import io.qameta.allure.*;
+
+import java.io.File;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -26,81 +29,26 @@ class K6ScriptGeneratorServiceTest {
     @Description("Ensure exception is thrown if bearer token is empty")
     void testEmptyBearerTokenThrowsException() {
         Exception exception = assertThrows(IllegalArgumentException.class,
-                () -> service.generateK6ScriptFromSwagger("https://new-api.maps.itsrv.xyz/v1-api-swagger", "DGPu5_xebwt6hn-pCSrUSBZOHLt5cCOS6synrMioOYsnPdL46YQk-MvpopNsM7I4"));
+                () -> service.generateK6ScriptFromSwagger("https://new-api.maps.itsrv.xyz/v1-api-swagger", ""));
         assertTrue(exception.getMessage().contains("token must not be empty"));
     }
 
-//    @Test
-//    @Story("Basic Script Generation")
-//    @Severity(SeverityLevel.NORMAL)
-//    @Description("Generate K6 script from simple Swagger with one endpoint")
-//    void testSwaggerJsonRetrievalAndScriptGeneration(@TempDir Path tempDir) throws Exception {
-//        String swaggerJson = """
-//            {
-//              "paths": {
-//                "/pets": {
-//                  "get": {}
-//                }
-//              }
-//            }
-//        """;
-//        try (MockedStatic<Request> requestMock = Mockito.mockStatic(Request.class)) {
-//            Request mockRequest = Mockito.mock(Request.class);
-//            Content mockContent = Mockito.mock(Content.class);
-//
-//            Mockito.when(mockContent.asString()).thenReturn(swaggerJson);
-//
-//            Response mockResponse = Mockito.mock(Response.class);
-//            Mockito.when(mockResponse.returnContent()).thenReturn(mockContent);
-//            Mockito.when(mockRequest.execute()).thenReturn(mockResponse);
-//
-//            requestMock.when(() -> Request.Get(Mockito.anyString())).thenReturn(mockRequest);
-//
-//            service.generateK6ScriptFromSwagger("https://new-api.maps.itsrv.xyz/v1-api-swagger", "DGPu5_xebwt6hn-pCSrUSBZOHLt5cCOS6synrMioOYsnPdL46YQk-MvpopNsM7I4");
-//
-//            File outputFile = new File(System.getProperty("user.home") + "/Documents/scripts/generatedK6Script.js");
-//            assertTrue(outputFile.exists());
-//            assertTrue(outputFile.length() > 0);
-//        }
-//    }
-//
-//    @Test
-//    @Story("Tag Grouping")
-//    @Severity(SeverityLevel.NORMAL)
-//    @Description("Test Swagger with multiple tags and verify grouping logic")
-//    void testSwaggerTagGroupingWithMultipleEndpoints() throws Exception {
-//        String swaggerJson = """
-//              {
-//              "paths": {
-//                "/pets": {
-//                  "get": { "tags": ["animals"] }
-//                },
-//                "/users": {
-//                  "post": { "tags": ["people"] }
-//                }
-//              }
-//            }
-//        """;
-//
-//        try (MockedStatic<Request> requestMock = Mockito.mockStatic(Request.class)) {
-//            Request mockRequest = Mockito.mock(Request.class);
-//            Content mockContent = Mockito.mock(Content.class);
-//
-//            Mockito.when(mockContent.asString()).thenReturn(swaggerJson);
-//
-//            Response mockResponse = Mockito.mock(Response.class);
-//            Mockito.when(mockResponse.returnContent()).thenReturn(mockContent);
-//            Mockito.when(mockRequest.execute()).thenReturn(mockResponse);
-//
-//            requestMock.when(() -> Request.Get(Mockito.anyString())).thenReturn(mockRequest);
-//
-//            service.generateK6ScriptFromSwagger("https://new-api.maps.itsrv.xyz/v1-api-swagger", "DGPu5_xebwt6hn-pCSrUSBZOHLt5cCOS6synrMioOYsnPdL46YQk-MvpopNsM7I4");
-//
-//            File outputFile = new File(System.getProperty("user.home") + "/Documents/scripts/generatedK6Script.js");
-//            assertTrue(outputFile.exists());
-//            String content = java.nio.file.Files.readString(outputFile.toPath());
-//            assertTrue(content.contains("group('animals'"));
-//            assertTrue(content.contains("group('people'"));
-//        }
-//    }
+    @Test
+    void generatesK6ScriptFile() throws Exception {
+        // Use a real or dummy Swagger file (can be a small valid Swagger/OpenAPI file)
+        // Here we assume such file is available at this path
+        String testSwaggerURL = "https://new-api.maps.itsrv.xyz/v1-api-swagger";
+        String token = "I2EkgEDlawkgmOdPrLrrRRkO24RErzGwHAmYd4EliEzTUzr8vcxLYy_lmdO4gKAI";
+
+        // Generate K6 script (ignore actual Swagger parsing for this minimal test)
+        service.generateK6ScriptFromSwagger(testSwaggerURL, token);
+
+        // Check if the file exists
+        String outputDir = System.getProperty("user.home") + "/Documents/scripts";
+        File generated = new File(outputDir + "/generatedK6Script.js");
+        Assertions.assertTrue(generated.exists(), "K6 script should be generated at " + generated.getAbsolutePath());
+
+        // (Optional) Cleanup
+        // generated.delete();
+    }
 }

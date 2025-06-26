@@ -15,7 +15,7 @@ public class K6ScriptGeneratorController {
 
     @GetMapping("/generate")
     public ResponseEntity<String> generateK6Script() {
-        String bearerToken = "DGPu5_xebwt6hn-pCSrUSBZOHLt5cCOS6synrMioOYsnPdL46YQk-MvpopNsM7I4";
+        String bearerToken = "I2EkgEDlawkgmOdPrLrrRRkO24RErzGwHAmYd4EliEzTUzr8vcxLYy_lmdO4gKAI";
         String swaggerUrl = "https://new-api.maps.itsrv.xyz/v1-api-swagger";
         try {
             generatorService.generateK6ScriptFromSwagger(swaggerUrl, bearerToken);

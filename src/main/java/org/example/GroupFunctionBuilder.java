@@ -6,8 +6,9 @@ import java.util.*;
 
 /**
  * Builds grouped test functions for each Swagger tag from path definitions,
- * including status check, timing, body validation, and logging response status per request.
- * Now supports all kinds of static values (example, default, enum) for query parameters.
+ * including status check, timing, body validation, logging response status per request,
+ * and safe handling of nulls in Swagger parameter definitions.
+ * Supports static/example/default/enum values for query and path parameters.
  */
 public class GroupFunctionBuilder {
 
@@ -63,25 +64,37 @@ public class GroupFunctionBuilder {
                 String safeName = ep.method.toUpperCase() + "_" + ep.path.replaceAll("[^a-zA-Z0-9]", "_");
                 String finalPath = ep.path.replace("{company}", "${COMPANY}");
 
-                // Query param builder - now supports "example", "default", "enum"
+                // Parameter handling
                 StringBuilder queryParams = new StringBuilder();
                 JsonNode parameters = ep.details.get("parameters");
+                List<String> paramList = new ArrayList<>();
+
                 if (parameters != null && parameters.isArray()) {
-                    List<String> paramList = new ArrayList<>();
                     for (JsonNode param : parameters) {
-                        if ("query".equals(param.path("in").asText()) && param.has("name")) {
-                            String name = param.get("name").asText();
-                            String value = "value";
-                            if (param.has("example")) {
-                                JsonNode ex = param.get("example");
-                                value = ex.isTextual() ? ex.asText() : ex.toString();
-                            } else if (param.has("default")) {
-                                JsonNode def = param.get("default");
-                                value = def.isTextual() ? def.asText() : def.toString();
-                            } else if (param.has("enum") && param.get("enum").isArray() && param.get("enum").size() > 0) {
-                                JsonNode first = param.get("enum").get(0);
-                                value = first.isTextual() ? first.asText() : first.toString();
-                            }
+                        JsonNode nameNode = param.get("name");
+                        if (nameNode == null) continue;
+                        String name = nameNode.asText();
+
+                        // Find static value for parameter
+                        String value = "value";
+                        JsonNode exampleNode = param.get("example");
+                        JsonNode defaultNode = param.get("default");
+                        JsonNode enumNode = param.get("enum");
+
+                        if (exampleNode != null) {
+                            value = exampleNode.isTextual() ? exampleNode.asText() : exampleNode.toString();
+                        } else if (defaultNode != null) {
+                            value = defaultNode.isTextual() ? defaultNode.asText() : defaultNode.toString();
+                        } else if (enumNode != null && enumNode.isArray() && enumNode.size() > 0) {
+                            JsonNode first = enumNode.get(0);
+                            value = first.isTextual() ? first.asText() : first.toString();
+                        }
+
+                        String inValue = param.path("in").asText();
+                        if ("path".equals(inValue)) {
+                            // Replace {param} in path with value (add null safety)
+                            finalPath = finalPath.replaceAll("\\{" + name + "\\}", value);
+                        } else if ("query".equals(inValue)) {
                             paramList.add(name + "=" + value);
                         }
                     }
