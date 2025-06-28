@@ -9,6 +9,8 @@ import java.util.*;
  * including status check, timing, body validation, logging response status per request,
  * and safe handling of nulls in Swagger parameter definitions.
  * Supports static/example/default/enum values for query and path parameters.
+ * Now: Only the received response status line is shown in the K6 console.
+ * Also logs every request result as [STATUS] in the K6 output.
  */
 public class GroupFunctionBuilder {
 
@@ -64,7 +66,7 @@ public class GroupFunctionBuilder {
                 String safeName = ep.method.toUpperCase() + "_" + ep.path.replaceAll("[^a-zA-Z0-9]", "_");
                 String finalPath = ep.path.replace("{company}", "${COMPANY}");
 
-                // Parameter handling
+                // Parameter handling (both path and query)
                 StringBuilder queryParams = new StringBuilder();
                 JsonNode parameters = ep.details.get("parameters");
                 List<String> paramList = new ArrayList<>();
@@ -111,17 +113,23 @@ public class GroupFunctionBuilder {
                             requestBodyBuilder.buildBodyJson(ep.details.get("requestBody"), components) + ");\n";
                 }
 
-                int status = 200;
+                // --- Dynamically collect all possible status codes for this endpoint
+                Set<String> statusCodes = new LinkedHashSet<>();
                 JsonNode responses = ep.details.get("responses");
                 if (responses != null) {
-                    if (responses.has("201")) status = 201;
-                    else if (responses.has("204")) status = 204;
-                    else if (responses.fieldNames().hasNext()) {
-                        try {
-                            status = Integer.parseInt(responses.fieldNames().next());
-                        } catch (Exception ignored) {}
+                    Iterator<String> fieldNames = responses.fieldNames();
+                    while (fieldNames.hasNext()) {
+                        String code = fieldNames.next();
+                        if (code.matches("\\d+")) {
+                            statusCodes.add(code);
+                        }
                     }
                 }
+                if (statusCodes.isEmpty()) statusCodes.add("200"); // default fallback
+
+                // Prepare JS array string of codes
+                String jsStatusArr = "[" + String.join(", ", statusCodes) + "]";
+                String urlForMsg = finalPath + queryParams;
 
                 builder.append("// Endpoint: ").append(ep.path).append("\n")
                         .append("// Method: ").append(ep.method.toUpperCase()).append("\n")
@@ -130,65 +138,26 @@ public class GroupFunctionBuilder {
                         .append(method).append("(`${BASE_URL}").append(finalPath).append(queryParams).append("`, ")
                         .append((hasBody && !"get".equals(method)) ? "body_" + safeName + ", { headers: HEADERS }" : "{ headers: HEADERS }")
                         .append(");\n")
-                        .append("   check(response_").append(safeName).append(", {\n")
-                        .append("  '[")
-                        .append(ep.method.toUpperCase()).append("] ")
-                        .append(finalPath).append(queryParams)
-                        .append(" status is ").append(status).append("': (r) => { const ok = r.status === ").append(status)
-                        .append("; if (!ok) console.log(`[FAIL][status is ").append(status)
-                        .append("][var=response_").append(safeName).append("][method=").append(ep.method.toUpperCase())
-                        .append("] ${r.request.method} ${r.request.url} - got ${r.status}`); return ok; },\n")
-
-                        // 401
-                        .append("  '[")
-                        .append(ep.method.toUpperCase()).append("] ")
-                        .append(finalPath).append(queryParams)
-                        .append(" status is 401': (r) => { const ok = r.status === 401; if (ok) console.log(`[INFO][status is 401][var=response_")
-                        .append(safeName).append("][method=").append(ep.method.toUpperCase())
-                        .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
-
-                        // 404
-                        .append("  '[")
-                        .append(ep.method.toUpperCase()).append("] ")
-                        .append(finalPath).append(queryParams)
-                        .append(" status is 404': (r) => { const ok = r.status === 404; if (ok) console.log(`[INFO][status is 404][var=response_")
-                        .append(safeName).append("][method=").append(ep.method.toUpperCase())
-                        .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
-
-                        // 500
-                        .append("  '[")
-                        .append(ep.method.toUpperCase()).append("] ")
-                        .append(finalPath).append(queryParams)
-                        .append(" status is 500': (r) => { const ok = r.status === 500; if (ok) console.log(`[INFO][status is 500][var=response_")
-                        .append(safeName).append("][method=").append(ep.method.toUpperCase())
-                        .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
-
-                        // Response has body
-                        .append("  '[")
-                        .append(ep.method.toUpperCase()).append("] ")
-                        .append(finalPath).append(queryParams)
-                        .append(" response has body': (r) => { const ok = r.body && r.body.length > 0; if (!ok) console.log(`[FAIL][no body][var=response_")
-                        .append(safeName).append("][method=").append(ep.method.toUpperCase())
-                        .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
-
-                        // Content-type is JSON
-                        .append("  '[")
-                        .append(ep.method.toUpperCase()).append("] ")
-                        .append(finalPath).append(queryParams)
-                        .append(" content-type is JSON': (r) => { const ok = r.headers['Content-Type'] && r.headers['Content-Type'].includes('application/json'); ")
-                        .append("if (!ok) console.log(`[FAIL][unexpected content-type][var=response_")
-                        .append(safeName).append("][method=").append(ep.method.toUpperCase())
-                        .append("] Expected JSON, got ${r.headers['Content-Type']} for ${r.request.url}`); return ok; },\n")
-
-                        // Response timing
-                        .append("  '[")
-                        .append(ep.method.toUpperCase()).append("] ")
-                        .append(finalPath).append(queryParams)
-                        .append(" response < 500ms': (r) => { const ok = r.timings.duration < 500; if (!ok) console.log(`[SLOW][${r.timings.duration}ms][var=response_")
-                        .append(safeName).append("][method=").append(ep.method.toUpperCase())
-                        .append("] ${r.request.method} ${r.request.url}`); return ok; },\n")
-
-                        .append("});\n")
+                        // Restore the info log for every request (positive/negative)
+                        .append("   console.log(`[STATUS][status is ${response_").append(safeName).append(".status}]")
+                        .append("[var=response_").append(safeName).append("][method=").append(ep.method.toUpperCase())
+                        .append("] ${response_").append(safeName).append(".request.method} ${response_").append(safeName).append(".request.url} - got ${response_").append(safeName).append(".status}`);\n")
+                        .append("   check(response_").append(safeName).append(", Object.assign({},\n")
+                        .append("    (() => {\n")
+                        .append("      let allowed = ").append(jsStatusArr).append(";\n")
+                        .append("      let got = response_").append(safeName).append(".status;\n")
+                        .append("      let msg = `[")
+                        .append(ep.method.toUpperCase()).append("] ").append(urlForMsg)
+                        .append(" status is ${got}`;\n")
+                        .append("      let obj = {};\n")
+                        .append("      if (allowed.includes(got)) obj[msg] = r => r.status === got;\n")
+                        .append("      return obj;\n")
+                        .append("    })(),\n")
+                        .append("    {\n")
+                        .append("      'response has body': r => r.body && r.body.length > 0,\n")
+                        .append("      'content-type is JSON': r => r.headers['Content-Type'] && r.headers['Content-Type'].includes('application/json'),\n")
+                        .append("      'response < 500ms': r => r.timings.duration < 500\n")
+                        .append("    }));\n")
                         .append("   sleep(1);\n\n");
             }
 
