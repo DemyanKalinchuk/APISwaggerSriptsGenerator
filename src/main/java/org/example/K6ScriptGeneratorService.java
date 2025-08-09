@@ -44,8 +44,8 @@ public class K6ScriptGeneratorService {
         JsonNode paths = rootNode.get("paths");
         JsonNode components = rootNode.path("components").path("schemas");
 
-        String companyValue = swaggerUrl.contains("new-api.maps.itsrv.xyz") ? "unicorn" : "my-company";
-        String baseUrl = "https://new-api.maps.itsrv.xyz";
+        String companyValue = swaggerUrl.contains("url") ? "company_name" : "my-company";
+        String baseUrl = "";
 
         logger.info("Generating grouped JS code blocks...");
         var groupBuilder = new GroupFunctionBuilder(paths, components);

@@ -29,8 +29,8 @@ class K6ScriptGeneratorServiceTest {
     void generatesK6ScriptFile() throws Exception {
         // Use a real or dummy Swagger file (can be a small valid Swagger/OpenAPI file)
         // Here we assume such file is available at this path
-        String testSwaggerURL = "https://new-api.maps.itsrv.xyz/v1-api-swagger";
-        String token = "I2EkgEDlawkgmOdPrLrrRRkO24RErzGwHAmYd4EliEzTUzr8vcxLYy_lmdO4gKAI";
+        String testSwaggerURL = "your_swagger";
+        String token = "token";
 
         // Generate K6 script (ignore actual Swagger parsing for this minimal test)
         service.generateK6ScriptFromSwagger(testSwaggerURL, token);
