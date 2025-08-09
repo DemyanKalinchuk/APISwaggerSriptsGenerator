@@ -1,4 +1,4 @@
-image: maven:3.9.6-eclipse-temurin-11
+image: maven:3.9.6-eclipse-temurin-21
 
 stages:
   - build
@@ -38,7 +38,7 @@ run_test:
   script:
     - docker run -d -p 8080:8080 -v $(pwd)/output:/app/output $DOCKER_IMAGE
     - sleep 10
-    - curl "http://localhost:8080/api/k6/generate?https://token=https://petstore3.swagger.io/api/v3/openapi.json&bearerToken="
+    - curl "http://localhost:8080/api/k6/generate?https://url=https://petstore3.swagger.io/api/v3/openapi.json&bearerToken="
     - echo "Generated script content:"
     - cat output/generatedK6Script.txt
   only:

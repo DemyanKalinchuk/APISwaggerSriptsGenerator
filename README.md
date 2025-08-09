@@ -8,10 +8,10 @@
 *     📄 Generates dynamic JS scripts for k6
 *     📦 Includes all HTTP methods: GET, POST, PUT, DELETE
 *     📂 Groups endpoints by Swagger tags
-*     🧪 Adds dynamic response status checks (200, 201, 204, 404)
+*     🧪 Adds dynamic response status checks (2xx, 4xx, 5xx)
 *     🧠 Builds request bodies from Swagger schemas
 *     🔎 Adds query params dynamically
-*     🧾 Opens and saves .txt file in ~/Documents/scripts_**
+*     🧾 Opens and saves .js file in ~/Documents/scripts_**
     
 ## **📁 Project Structure
 
@@ -20,7 +20,7 @@
     └── K6ScriptGeneratorService.java**
 
 ## *** **🛠 Requirements**
-*     Java 11
+*     Java 21
 *     Maven
 *     Internet connection (to access Swagger JSON)**
 
@@ -35,7 +35,7 @@
     service.generateK6ScriptFromSwagger("https://example.com/swagger.json", "your-bearer-token");
 
 ## ***     **Generated script path:****
-*     ~/Documents/scripts/generatedK6Script.txt
+*     ~/Documents/scripts/generatedK6Script.js
 
 # **🧪 How It Works**
 ## **Step-by-Step Flow:**
@@ -69,7 +69,7 @@
 ## ** 🐳 Docker Support**
 *     To run this in Docker:
 *     Dockerfile:
-*     FROM openjdk:11-jdk
+*     FROM openjdk:21-jdk
 *     COPY target/*.jar app.jar
 *     ENTRYPOINT ["java", "-jar", "/app.jar"]
 *     Volume Mount & Auto Execution:
